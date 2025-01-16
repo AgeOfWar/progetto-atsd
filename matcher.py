@@ -1,12 +1,12 @@
 import numpy as np
 from scipy.io import wavfile
-from scipy.signal import resample, correlate, stft, find_peaks
+from scipy.signal import correlate2d, correlate, stft
 import tempfile
 import subprocess
 import os
 
 def convert(path, dest):
-    subprocess.run(["ffmpeg", "-y", "-i", path, "-ab", "128k", "-ac", "1", "-ar", "16384", "-vn", dest])
+    subprocess.run(["ffmpeg", "-y", "-i", path, "-ab", "128k", "-ac", "1", "-ar", "22050", "-vn", dest])
 
 class Matcher:
     def set_original(self, path):
@@ -26,22 +26,27 @@ class Matcher:
         self.clip = clip
 
     def correlate(self):
-        original = fingerprint(self.original)
-        clip = fingerprint(self.clip)
-        index, precision = correlate_signals(original, clip)
-        return index * len(self.original) // len(original), precision
+        return correlate_signals(self.original, self.clip)
     
 
-def fingerprint(s, nperseg=256, stride=32):
+def correlate_stft(s1, s2, nperseg=512, stride=64):
+    s1 = s1 - np.mean(s1)
+    s1 = s1 / np.max(np.abs(s1))
+    s2 = s2 - np.mean(s2)
+    s2 = s2 / np.max(np.abs(s2))
     noverlap = nperseg - stride
-    _ , _, z = stft(s, nperseg=nperseg, noverlap=noverlap)
-    
-    fingerprint = np.zeros(z.shape[1])
-    for i in range(z.shape[1]):
-        f = z[:, i]
-        f = f / max(np.max(np.abs(f)), 1e-6)
-        fingerprint[i] = np.sum(np.arange(len(f)) * np.abs(f)**2) / max(np.sum(np.abs(f)**2), 1e-6)
-    return fingerprint
+    _, _, z1 = stft(s1, nperseg=nperseg, noverlap=noverlap)
+    _, _, z2 = stft(s2, nperseg=nperseg, noverlap=noverlap)
+    z1 = z1.T
+    z2 = z2.T
+    correlation = correlate2d(z1, z2, mode='valid')
+    correlation = np.sum(np.abs(correlation), axis=1)
+    print(correlation.shape)
+    max_index = correlation.argmax()
+    # max_correlation = correlation[max_index]
+    # s1_energy = np.sum(z1[max_index:min(max_index + z2.shape[1], z1.shape[1])]**2)
+    # s2_energy = np.sum(z2**2)
+    return max_index * stride, 1 # max_correlation / (np.sqrt(s1_energy) * np.sqrt(s2_energy))
 
 
 def correlate_signals(s1, s2):
