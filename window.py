@@ -4,8 +4,11 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
+from pyqtgraph import GraphicsLayoutWidget
+from numpy import ndarray
 from matcher import Matcher
 import traceback
+import numpy as np
 
 class Window(QtWidgets.QMainWindow):
     def __init__(self):
@@ -161,7 +164,7 @@ class Window(QtWidgets.QMainWindow):
     def find(self):
         # Worker thread for finding the matching clip
         class Worker(QThread):
-            finished = Signal(int)
+            finished = Signal((int, ndarray))
             error = Signal(str)
 
             def __init__(self, matcher, url):
@@ -172,10 +175,9 @@ class Window(QtWidgets.QMainWindow):
             def run(self):
                 try:
                     self.matcher.set_clip(self.url)
-                    index, accuracy = self.matcher.correlate()
-                    time = index * 1000 // self.matcher.frequency
-                    self.finished.emit(time)
-                    print("Clip starts at {0} seconds with {1} accuracy".format(time / 1000, accuracy))
+                    index, accuracy, correlation = self.matcher.correlate()
+                    self.finished.emit(index, correlation)
+                    print("Clip starts at {0} seconds with {1} accuracy".format(index / self.matcher.frequency, accuracy))
                 except BaseException as e:
                     self.error.emit(str(e))
                     traceback.print_exc() 
@@ -194,13 +196,25 @@ class Window(QtWidgets.QMainWindow):
             self.worker.start()
 
     @QtCore.Slot()
-    def set_find_finished(self, time):
+    def set_find_finished(self, index, correlation):
         # Set the media player's position to the found time and pause playback
-        self.player.setPosition(time)
+        self.player.setPosition(index * 1000 // self.matcher.frequency)
         self.player.pause()
         self.play_button.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart))
         self.find_button.setEnabled(True)
         self.find_button.setText("Find")
+        # open new window
+        self.plot_window = GraphicsLayoutWidget()
+        self.plot_window.setWindowTitle("Correlation")
+        self.plot_window.resize(800, 600)
+        p1 = self.plot_window.addPlot(title="Correlation")
+        p1.plot(correlation)
+        p2 = self.plot_window.addPlot(title="Signals", row=1, col=0)
+        original = self.matcher.original
+        clip = self.matcher.clip
+        p2.plot(np.pad(original, len(clip) // 2)[index:index + len(clip):100], pen='y')
+        p2.plot(self.matcher.clip[::100], pen='b')
+        self.plot_window.show()
 
 def main():
     # Entry point for the application

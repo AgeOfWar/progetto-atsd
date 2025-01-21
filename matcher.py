@@ -40,7 +40,7 @@ class Matcher:
 
     # Correlates the original audio with the clip to find the best match
     def correlate(self):
-        return correlate_stft(self.original, self.clip)
+        return correlate_signals(self.original, self.clip)
 
 
 # Computes the cross-correlation of the Short-Time Fourier Transform (STFT)
@@ -64,7 +64,6 @@ def correlate_stft(s1, s2, nperseg=512, stride=128):
     correlation = correlate2d(z1, z2, mode='valid')
     # Sum the absolute values across all frequencies for each time shift
     correlation = np.sum(np.abs(correlation), axis=1)
-    print(correlation.shape)  # Debug: Print the shape of the correlation array
     max_index = correlation.argmax()  # Find the index of the highest correlation
     return max_index * stride, 1  # Return the time shift and a placeholder score
 
@@ -85,4 +84,4 @@ def correlate_signals(s1, s2):
     s2_energy = np.sum(s2**2)
     
     # Return the index of the best match and the normalized correlation coefficient
-    return max_index, max_correlation / (np.sqrt(s1_energy) * np.sqrt(s2_energy))
+    return max_index, max_correlation / (np.sqrt(s1_energy) * np.sqrt(s2_energy)), correlation
