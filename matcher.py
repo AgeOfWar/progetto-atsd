@@ -21,11 +21,9 @@ class Matcher:
         # Read the WAV file and get the sampling frequency and data
         frequency, original = wavfile.read(temp)
         self.frequency = frequency  # Store the sampling frequency
-        # Normalize the audio signal to the range [-1, 1]
-        original = original / np.max(np.abs(original))
-        self.original = original  # Store the processed original signal
-        self.clip = None  # Reset the clip attribute
-
+        self.original = original
+        self.clip = None
+    
     # Loads and preprocesses the clip audio file
     def set_clip(self, path):
         # Create a temporary file path for the converted clip
@@ -34,9 +32,7 @@ class Matcher:
         convert(path, temp)
         # Read the WAV file and get the data
         _, clip = wavfile.read(temp)
-        # Normalize the audio signal to the range [-1, 1]
-        clip = clip / np.max(np.abs(clip))
-        self.clip = clip  # Store the processed clip signal
+        self.clip = clip
 
     # Correlates the original audio with the clip to find the best match
     def correlate(self):
@@ -74,6 +70,12 @@ def correlate_signals(s1, s2):
     if len(s1) < len(s2):
         s1, s2 = s2, s1
     
+    s1 = s1.astype(np.float64)
+    s2 = s2.astype(np.float64)
+
+    s1 = np.sign(s1)
+    s2 = np.sign(s2)
+    
     # Compute the cross-correlation between the two signals
     correlation = correlate(s1, s2, mode='valid')
     max_index = correlation.argmax()  # Find the index of the highest correlation
@@ -85,3 +87,5 @@ def correlate_signals(s1, s2):
     
     # Return the index of the best match and the normalized correlation coefficient
     return max_index, max_correlation / (np.sqrt(s1_energy) * np.sqrt(s2_energy)), correlation
+
+
