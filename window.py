@@ -209,7 +209,7 @@ class Window(QtWidgets.QMainWindow):
         self.plot_window.setWindowTitle("Correlation")
         self.plot_window.resize(800, 600)
         p1 = self.plot_window.addPlot(title="Correlation")
-        p1.plot(correlation[index - 10000:index + 10000])
+        p1.plot(np.pad(correlation, 10000)[index:index + 20000])
         p2 = self.plot_window.addPlot(title="Signals", row=1, col=0)
         original = self.matcher.original
         clip = self.matcher.clip
