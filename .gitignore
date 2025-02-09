@@ -1,5 +1,7 @@
 *.ogg
 *.mp3
+*.mp4
 *.wav
 *.m
 __pycache__
+env
